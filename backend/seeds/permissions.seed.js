@@ -9,6 +9,11 @@ const permissions = [
     name: "students.search",
     description: "Search students",
   },
+
+  {
+    name: "students.update",
+    description: "Update student information",
+  },
   {
     name: "students.approve",
     description: "Approve student registrations",
