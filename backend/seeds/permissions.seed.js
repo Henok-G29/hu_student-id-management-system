@@ -53,8 +53,6 @@ const permissions = [
 
 async function seedPermissions() {
   try {
-    console.log("Starting permissions seed...!");
-
     for (const permission of permissions) {
       await pool.execute(
         `
@@ -68,8 +66,6 @@ async function seedPermissions() {
 
       console.log(` ${permission.name}`);
     }
-
-    console.log("Permissions seeded successfully!");
   } catch (error) {
     console.error("Permission seed failed:");
     console.error(error.message);
