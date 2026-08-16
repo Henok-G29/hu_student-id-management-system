@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  />
+
+  <title>HU Student ID - Authentication Test</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 700px;
+      margin: 50px auto;
+      padding: 20px;
+    }
+
+    form {
+      border: 1px solid #ddd;
+      padding: 20px;
+      border-radius: 8px;
+    }
+
+    input {
+      width: 100%;
+      padding: 10px;
+      margin-top: 5px;
+      box-sizing: border-box;
+    }
+
+    button {
+      padding: 10px 16px;
+      margin-top: 15px;
+      cursor: pointer;
+    }
+
+    #result {
+      background: #f4f4f4;
+      padding: 15px;
+      margin-top: 20px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      border-radius: 8px;
+    }
+
+    .success {
+      border: 2px solid green;
+    }
+
+    .error {
+      border: 2px solid red;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>HU Student ID Authentication Test</h1>
+
+  <!-- LOGIN -->
+
+  <h2>1. Admin Login</h2>
+
+  <form id="loginForm">
+
+    <label for="email">
+      Email
+    </label>
+
+    <input
+      type="email"
+      id="email"
+      required
+    />
+
+    <br />
+
+    <label for="password">
+      Password
+    </label>
+
+    <input
+      type="password"
+      id="password"
+      required
+    />
+
+    <button type="submit">
+      Login
+    </button>
+
+  </form>
+
+
+  <!-- PROTECTED API -->
+
+  <h2>2. Protected API</h2>
+
+  <button id="protectedButton">
+    Test Protected API
+  </button>
+
+
+  <!-- RESULT -->
+
+  <h2>Server Response</h2>
+
+  <pre id="result">
+Waiting for request...
+  </pre>
+
+
+  <script>
+
+    const loginForm =
+      document.getElementById("loginForm");
+
+    const protectedButton =
+      document.getElementById("protectedButton");
+
+    const result =
+      document.getElementById("result");
+
+
+    // Store JWT in memory
+
+    let authToken = null;
+
+
+    // ==========================
+    // LOGIN
+    // ==========================
+
+    loginForm.addEventListener(
+      "submit",
+      async (event) => {
+
+        event.preventDefault();
+
+        result.className = "";
+
+        result.textContent =
+          "Logging in...";
+
+
+        const email =
+          document.getElementById("email").value;
+
+        const password =
+          document.getElementById("password").value;
+
+
+        try {
+
+          const response = await fetch(
+            "http://127.0.0.1:3000/api/auth/login",
+            {
+              method: "POST",
+
+              headers: {
+                "Content-Type":
+                  "application/json"
+              },
+
+              body: JSON.stringify({
+                email,
+                password
+              })
+            }
+          );
+
+
+          const data =
+            await response.json();
+
+
+          if (!response.ok) {
+
+            result.className = "error";
+
+            result.textContent =
+              JSON.stringify(
+                data,
+                null,
+                2
+              );
+
+            return;
+          }
+
+
+          // Save JWT
+
+          authToken =
+            data.data.token;
+
+
+          result.className =
+            "success";
+
+          result.textContent =
+            JSON.stringify(
+              data,
+              null,
+              2
+            );
+
+        } catch (error) {
+
+          result.className =
+            "error";
+
+          result.textContent =
+            "Request failed: " +
+            error.message;
+        }
+
+      }
+    );
+
+
+    // ==========================
+    // PROTECTED API
+    // ==========================
+
+    protectedButton.addEventListener(
+      "click",
+      async () => {
+
+        if (!authToken) {
+
+          result.className =
+            "error";
+
+          result.textContent =
+            "Please login first.";
+
+          return;
+        }
+
+
+        result.className = "";
+
+        result.textContent =
+          "Testing protected API...";
+
+
+        try {
+
+          const response =
+            await fetch(
+              "http://127.0.0.1:3000/api/test/protected",
+              {
+                method: "GET",
+
+                headers: {
+                  "Authorization":
+                    `Bearer ${authToken}`
+                }
+              }
+            );
+
+
+          const data =
+            await response.json();
+
+
+          result.textContent =
+            JSON.stringify(
+              data,
+              null,
+              2
+            );
+
+
+          if (response.ok) {
+
+            result.className =
+              "success";
+
+          } else {
+
+            result.className =
+              "error";
+
+          }
+
+        } catch (error) {
+
+          result.className =
+            "error";
+
+          result.textContent =
+            "Request failed: " +
+            error.message;
+        }
+
+      }
+    );
+
+  </script>
+
+</body>
+</html>
