@@ -8,131 +8,217 @@
     content="width=device-width, initial-scale=1.0"
   />
 
-  <title>HU Student ID - Authentication Test</title>
+  <title>HU Student ID - API Test</title>
 
   <style>
     body {
       font-family: Arial, sans-serif;
-      max-width: 700px;
-      margin: 50px auto;
+      max-width: 800px;
+      margin: 40px auto;
       padding: 20px;
     }
 
-    form {
+    .section {
       border: 1px solid #ddd;
-      padding: 20px;
       border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 5px;
+      font-weight: bold;
     }
 
     input {
       width: 100%;
       padding: 10px;
-      margin-top: 5px;
       box-sizing: border-box;
+      margin-bottom: 10px;
     }
 
     button {
       padding: 10px 16px;
-      margin-top: 15px;
+      margin: 5px;
       cursor: pointer;
     }
 
     #result {
-      background: #f4f4f4;
-      padding: 15px;
-      margin-top: 20px;
+      padding: 20px;
+      background: #f5f5f5;
+      border: 2px solid #ccc;
+      border-radius: 8px;
       white-space: pre-wrap;
       word-break: break-word;
-      border-radius: 8px;
+      overflow-x: auto;
     }
 
     .success {
-      border: 2px solid green;
+      border-color: green !important;
+      background: #f0fff0 !important;
     }
 
     .error {
-      border: 2px solid red;
+      border-color: red !important;
+      background: #fff0f0 !important;
+    }
+
+    .info {
+      border-color: blue !important;
+      background: #f0f5ff !important;
     }
   </style>
 </head>
 
 <body>
 
-  <h1>HU Student ID Authentication Test</h1>
+  <h1>HU Student ID API Test</h1>
+
 
   <!-- LOGIN -->
 
-  <h2>1. Admin Login</h2>
+  <div class="section">
 
-  <form id="loginForm">
+    <h2>1. Login</h2>
 
-    <label for="email">
-      Email
-    </label>
+    <form id="loginForm">
 
-    <input
-      type="email"
-      id="email"
-      required
-    />
+      <div class="form-group">
 
-    <br />
+        <label for="email">
+          Email
+        </label>
 
-    <label for="password">
-      Password
-    </label>
+        <input
+          type="email"
+          id="email"
+          required
+        />
 
-    <input
-      type="password"
-      id="password"
-      required
-    />
+      </div>
 
-    <button type="submit">
-      Login
+
+      <div class="form-group">
+
+        <label for="password">
+          Password
+        </label>
+
+        <input
+          type="password"
+          id="password"
+          required
+        />
+
+      </div>
+
+
+      <button type="submit">
+        Login
+      </button>
+
+    </form>
+
+  </div>
+
+
+  <!-- AUTHENTICATION -->
+
+  <div class="section">
+
+    <h2>2. Authentication Test</h2>
+
+    <button id="protectedButton">
+      Test Protected API
     </button>
 
-  </form>
+  </div>
 
 
-  <!-- PROTECTED API -->
+  <!-- PERMISSION -->
 
-  <h2>2. Protected API</h2>
+  <div class="section">
 
-  <button id="protectedButton">
-    Test Protected API
-  </button>
+    <h2>3. Permission Test</h2>
+
+    <button id="permissionButton">
+      Test students.view Permission
+    </button>
+
+  </div>
 
 
   <!-- RESULT -->
 
-  <h2>Server Response</h2>
+  <div class="section">
 
-  <pre id="result">
+    <h2>Server Response</h2>
+
+    <pre id="result">
 Waiting for request...
-  </pre>
+    </pre>
+
+  </div>
 
 
   <script>
+
+    let authToken = null;
+
 
     const loginForm =
       document.getElementById("loginForm");
 
     const protectedButton =
-      document.getElementById("protectedButton");
+      document.getElementById(
+        "protectedButton"
+      );
+
+    const permissionButton =
+      document.getElementById(
+        "permissionButton"
+      );
 
     const result =
       document.getElementById("result");
 
 
-    // Store JWT in memory
+    // ======================================
+    // DISPLAY RESULT
+    // ======================================
 
-    let authToken = null;
+    function displayResult(
+      title,
+      status,
+      body,
+      isSuccess
+    ) {
+
+      result.className =
+        isSuccess
+          ? "success"
+          : "error";
 
 
-    // ==========================
+      result.textContent =
+`${title}
+
+HTTP STATUS:
+${status}
+
+RESPONSE BODY:
+${body}`;
+    }
+
+
+    // ======================================
     // LOGIN
-    // ==========================
+    // ======================================
 
     loginForm.addEventListener(
       "submit",
@@ -140,91 +226,131 @@ Waiting for request...
 
         event.preventDefault();
 
-        result.className = "";
+
+        result.className = "info";
 
         result.textContent =
-          "Logging in...";
+          "Sending login request...";
 
 
         const email =
-          document.getElementById("email").value;
+          document.getElementById(
+            "email"
+          ).value;
 
         const password =
-          document.getElementById("password").value;
+          document.getElementById(
+            "password"
+          ).value;
 
 
         try {
 
-          const response = await fetch(
-            "http://127.0.0.1:3000/api/auth/login",
-            {
-              method: "POST",
+          const response =
+            await fetch(
+              "http://127.0.0.1:3000/api/auth/login",
+              {
+                method: "POST",
 
-              headers: {
-                "Content-Type":
-                  "application/json"
-              },
+                headers: {
+                  "Content-Type":
+                    "application/json"
+                },
 
-              body: JSON.stringify({
-                email,
-                password
-              })
-            }
+                body: JSON.stringify({
+                  email,
+                  password
+                })
+              }
+            );
+
+
+          const body =
+            await response.text();
+
+
+          console.log(
+            "LOGIN STATUS:",
+            response.status
+          );
+
+          console.log(
+            "LOGIN BODY:",
+            body
           );
 
 
-          const data =
-            await response.json();
+          let data;
 
+          try {
 
-          if (!response.ok) {
+            data =
+              JSON.parse(body);
 
-            result.className = "error";
+          } catch {
 
-            result.textContent =
-              JSON.stringify(
-                data,
-                null,
-                2
-              );
+            displayResult(
+              "LOGIN RESPONSE IS NOT JSON",
+              response.status,
+              body,
+              false
+            );
 
             return;
           }
 
 
-          // Save JWT
+          if (!response.ok) {
+
+            displayResult(
+              "LOGIN FAILED",
+              response.status,
+              JSON.stringify(
+                data,
+                null,
+                2
+              ),
+              false
+            );
+
+            return;
+          }
+
 
           authToken =
             data.data.token;
 
 
-          result.className =
-            "success";
-
-          result.textContent =
+          displayResult(
+            "LOGIN SUCCESS",
+            response.status,
             JSON.stringify(
               data,
               null,
               2
-            );
+            ),
+            true
+          );
+
 
         } catch (error) {
 
-          result.className =
-            "error";
+          displayResult(
+            "LOGIN REQUEST FAILED",
+            "NO RESPONSE",
+            error.message,
+            false
+          );
 
-          result.textContent =
-            "Request failed: " +
-            error.message;
         }
 
       }
     );
 
 
-    // ==========================
+    // ======================================
     // PROTECTED API
-    // ==========================
+    // ======================================
 
     protectedButton.addEventListener(
       "click",
@@ -232,20 +358,15 @@ Waiting for request...
 
         if (!authToken) {
 
-          result.className =
-            "error";
-
-          result.textContent =
-            "Please login first.";
+          displayResult(
+            "AUTHENTICATION ERROR",
+            "-",
+            "Please login first.",
+            false
+          );
 
           return;
         }
-
-
-        result.className = "";
-
-        result.textContent =
-          "Testing protected API...";
 
 
         try {
@@ -264,38 +385,161 @@ Waiting for request...
             );
 
 
-          const data =
-            await response.json();
+          const body =
+            await response.text();
 
 
-          result.textContent =
+          console.log(
+            "PROTECTED STATUS:",
+            response.status
+          );
+
+          console.log(
+            "PROTECTED BODY:",
+            body
+          );
+
+
+          let data;
+
+          try {
+
+            data =
+              JSON.parse(body);
+
+          } catch {
+
+            displayResult(
+              "PROTECTED API RETURNED NON-JSON",
+              response.status,
+              body,
+              false
+            );
+
+            return;
+          }
+
+
+          displayResult(
+            "PROTECTED API RESPONSE",
+            response.status,
             JSON.stringify(
               data,
               null,
               2
-            );
+            ),
+            response.ok
+          );
 
-
-          if (response.ok) {
-
-            result.className =
-              "success";
-
-          } else {
-
-            result.className =
-              "error";
-
-          }
 
         } catch (error) {
 
-          result.className =
-            "error";
+          displayResult(
+            "PROTECTED REQUEST FAILED",
+            "NO RESPONSE",
+            error.message,
+            false
+          );
 
-          result.textContent =
-            "Request failed: " +
-            error.message;
+        }
+
+      }
+    );
+
+
+    // ======================================
+    // PERMISSION API
+    // ======================================
+
+    permissionButton.addEventListener(
+      "click",
+      async () => {
+
+        if (!authToken) {
+
+          displayResult(
+            "AUTHENTICATION ERROR",
+            "-",
+            "Please login first.",
+            false
+          );
+
+          return;
+        }
+
+
+        try {
+
+          const response =
+            await fetch(
+              "http://127.0.0.1:3000/api/test/permission-test",
+              {
+                method: "GET",
+
+                headers: {
+                  "Authorization":
+                    `Bearer ${authToken}`
+                }
+              }
+            );
+
+
+          const body =
+            await response.text();
+
+
+          console.log(
+            "PERMISSION STATUS:",
+            response.status
+          );
+
+          console.log(
+            "PERMISSION BODY:",
+            body
+          );
+
+
+          let data;
+
+          try {
+
+            data =
+              JSON.parse(body);
+
+          } catch {
+
+            displayResult(
+              "PERMISSION API RETURNED NON-JSON",
+              response.status,
+              body,
+              false
+            );
+
+            return;
+          }
+
+
+          displayResult(
+            "PERMISSION API RESPONSE",
+            response.status,
+            JSON.stringify(
+              data,
+              null,
+              2
+            ),
+            response.ok
+          );
+
+
+        } catch (error) {
+
+          displayResult(
+            "PERMISSION REQUEST FAILED",
+            "NO RESPONSE",
+            error.message,
+            false
+          );
+
         }
 
       }
