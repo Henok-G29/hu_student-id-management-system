@@ -24,11 +24,10 @@ async function createAdminUserPermissionsTable() {
       )
             `);
 
-    console.log("created Admin user permissions table ...!");
   } catch (error) {
-    console.error("failed create admin user permissions table");
+    console.error("failed create admin_permissions table");
     console.error(error.message);
   }
 }
 
-createAdminUserPermissionsTable();
+module.exports = createAdminUserPermissionsTable;
