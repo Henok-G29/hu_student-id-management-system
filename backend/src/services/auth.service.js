@@ -2,10 +2,31 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const pool = require("../config/database");
 
+// GET ADMIN PERMISSIONS
+
+async function getAdminPermissions(adminId) {
+  const [rows] = await pool.execute(
+    `
+      SELECT
+        p.name
+      FROM permissions p
+      INNER JOIN admin_user_permissions aup
+        ON aup.permission_id = p.id
+      WHERE aup.admin_user_id = ?
+      ORDER BY p.id ASC
+    `,
+    [adminId],
+  );
+
+  return rows.map((row) => row.name);
+}
+
 // REGISTER SUB-ADMIN
+
 async function registerSubAdmin({ full_name, email, password }) {
 
   // Check whether email already exists
+
   const [existingRows] = await pool.execute(
     `
       SELECT id
@@ -24,13 +45,12 @@ async function registerSubAdmin({ full_name, email, password }) {
   }
 
   // Hash password
+
   const passwordHash = await bcrypt.hash(password, 12);
 
   // Create sub-admin
   //
-  // IMPORTANT:
-  // role is ALWAYS sub_admin.
-  // New sub-admin receives NO permissions.
+
   const [result] = await pool.execute(
     `
       INSERT INTO admin_users (
@@ -53,11 +73,13 @@ async function registerSubAdmin({ full_name, email, password }) {
       email,
       role: "sub_admin",
       is_active: 1,
+      permissions: [],
     },
   };
 }
 
 // LOGIN ADMIN
+
 async function loginAdmin(email, password) {
   const [rows] = await pool.execute(
     `
@@ -76,6 +98,7 @@ async function loginAdmin(email, password) {
   );
 
   // Admin not found
+
   if (rows.length === 0) {
     return {
       success: false,
@@ -86,6 +109,7 @@ async function loginAdmin(email, password) {
   const admin = rows[0];
 
   // Check account status
+
   if (!admin.is_active) {
     return {
       success: false,
@@ -94,6 +118,7 @@ async function loginAdmin(email, password) {
   }
 
   // Compare password
+
   const passwordMatches = await bcrypt.compare(password, admin.password_hash);
 
   if (!passwordMatches) {
@@ -101,6 +126,14 @@ async function loginAdmin(email, password) {
       success: false,
       reason: "INVALID_CREDENTIALS",
     };
+  }
+
+  // GET PERMISSIONS
+
+  let permissions = [];
+
+  if (admin.role === "sub_admin") {
+    permissions = await getAdminPermissions(admin.id);
   }
 
   // Create JWT
@@ -115,10 +148,10 @@ async function loginAdmin(email, password) {
     },
   );
 
-  // Success
+  // Return authenticated admin
+
   return {
     success: true,
-
     token,
 
     admin: {
@@ -126,11 +159,59 @@ async function loginAdmin(email, password) {
       full_name: admin.full_name,
       email: admin.email,
       role: admin.role,
+      is_active: admin.is_active,
+      permissions,
     },
   };
 }
 
+// GET CURRENT ADMIN
+
+async function getCurrentAdmin(adminId) {
+  const [rows] = await pool.execute(
+    `
+      SELECT
+        id,
+        full_name,
+        email,
+        role,
+        is_active
+      FROM admin_users
+      WHERE id = ?
+      LIMIT 1
+    `,
+    [adminId],
+  );
+
+  // Admin not found
+
+  if (rows.length === 0) {
+    return null;
+  }
+
+  const admin = rows[0];
+
+  // GET CURRENT PERMISSIONS
+  let permissions = [];
+
+  if (admin.role === "sub_admin") {
+    permissions = await getAdminPermissions(admin.id);
+  }
+
+  return {
+    id: admin.id,
+    full_name: admin.full_name,
+    email: admin.email,
+    role: admin.role,
+    is_active: admin.is_active,
+    permissions,
+  };
+}
+
+
 module.exports = {
   registerSubAdmin,
   loginAdmin,
+  getCurrentAdmin,
+  getAdminPermissions,
 };

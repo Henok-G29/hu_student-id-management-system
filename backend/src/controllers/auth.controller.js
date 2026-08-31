@@ -1,4 +1,4 @@
-const { registerSubAdmin, loginAdmin } = require("../services/auth.service");
+const { registerSubAdmin, loginAdmin, getCurrentAdmin } = require("../services/auth.service");
 
 // REGISTER SUB-ADMIN
 async function register(req, res) {
@@ -139,7 +139,41 @@ async function login(req, res) {
   }
 }
 
+// GET CURRENT AUTHENTICATED ADMIN
+async function me(req, res) {
+  try {
+    const admin = await getCurrentAdmin(req.user.id);
+
+    if (!admin) {
+      return res.status(404).json({
+        success: false,
+        message: "Administrator not found.",
+      });
+    }
+
+    if (!admin.is_active) {
+      return res.status(403).json({
+        success: false,
+        message: "Your account is inactive.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      admin,
+    });
+  } catch (error) {
+    console.error("Get current admin error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to load administrator information.",
+    });
+  }
+}
+
 module.exports = {
   register,
   login,
+  me,
 };
