@@ -1,6 +1,8 @@
+const bcrypt = require("bcrypt");
 const adminService = require("../services/admin.service");
 
 // HELPER: CHECK MAIN ADMIN
+
 function requireMainAdmin(req, res) {
   if (!req.user) {
     res.status(401).json({
@@ -23,32 +25,28 @@ function requireMainAdmin(req, res) {
   return true;
 }
 
-
 // HELPER: VALIDATE DATABASE ID
+
 function isValidId(id) {
   return /^\d+$/.test(String(id));
 }
 
 // GET ALL ADMINS
+
 async function getAllAdmins(req, res) {
   try {
-
     if (!requireMainAdmin(req, res)) {
       return;
     }
 
-
     const admins = await adminService.getAllAdmins();
-
 
     return res.status(200).json({
       success: true,
       count: admins.length,
       admins,
     });
-
   } catch (error) {
-
     console.error("Get all admins error:", error);
 
     return res.status(500).json({
@@ -59,16 +57,14 @@ async function getAllAdmins(req, res) {
 }
 
 // GET ADMIN BY ID
+
 async function getAdminById(req, res) {
   try {
-
     if (!requireMainAdmin(req, res)) {
       return;
     }
 
-
     const { id } = req.params;
-
 
     if (!isValidId(id)) {
       return res.status(400).json({
@@ -77,9 +73,7 @@ async function getAdminById(req, res) {
       });
     }
 
-
     const admin = await adminService.getAdminById(id);
-
 
     if (!admin) {
       return res.status(404).json({
@@ -88,14 +82,11 @@ async function getAdminById(req, res) {
       });
     }
 
-
     return res.status(200).json({
       success: true,
       admin,
     });
-
   } catch (error) {
-
     console.error("Get admin by ID error:", error);
 
     return res.status(500).json({
@@ -105,35 +96,34 @@ async function getAdminById(req, res) {
   }
 }
 
-// CREATE SUB ADMIN
+// CREATE SUB-ADMIN
+//
+// Backend hashes the password before storing it.
+
 async function createSubAdmin(req, res) {
   try {
-
     if (!requireMainAdmin(req, res)) {
       return;
     }
 
-
-    const {
-      full_name,
-      email,
-      password_hash,
-    } = req.body;
+    const { full_name, email, password } = req.body;
 
     // Validate required fields
-    if (!full_name || !email || !password_hash) {
+
+    if (!full_name || !email || !password) {
       return res.status(400).json({
         success: false,
-        message:
-          "Full name, email and password hash are required.",
+        message: "Full name, email and password are required.",
       });
     }
 
+    // Clean input
 
-    const cleanFullName = full_name.trim();
-    const cleanEmail = email.trim().toLowerCase();
+    const cleanFullName = String(full_name).trim();
+    const cleanEmail = String(email).trim().toLowerCase();
 
-    // Validate name
+    // Validate full name
+
     if (cleanFullName.length < 2) {
       return res.status(400).json({
         success: false,
@@ -142,9 +132,8 @@ async function createSubAdmin(req, res) {
     }
 
     // Validate email
-    const emailPattern =
-      /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     if (!emailPattern.test(cleanEmail)) {
       return res.status(400).json({
@@ -153,10 +142,18 @@ async function createSubAdmin(req, res) {
       });
     }
 
-    // Check duplicate email
-    const existingAdmin =
-      await adminService.getAdminByEmail(cleanEmail);
+    // Validate password
 
+    if (String(password).length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must contain at least 8 characters.",
+      });
+    }
+
+    // Check duplicate email
+
+    const existingAdmin = await adminService.getAdminByEmail(cleanEmail);
 
     if (existingAdmin) {
       return res.status(409).json({
@@ -165,26 +162,25 @@ async function createSubAdmin(req, res) {
       });
     }
 
+    // HASH PASSWORD
+
+    const passwordHash = await bcrypt.hash(String(password), 12);
 
     // Create sub-admin
-    const admin =
-      await adminService.createSubAdmin({
-        full_name: cleanFullName,
-        email: cleanEmail,
-        password_hash,
-      });
 
+    const admin = await adminService.createSubAdmin({
+      full_name: cleanFullName,
+      email: cleanEmail,
+      password_hash: passwordHash,
+    });
 
     return res.status(201).json({
       success: true,
       message: "Sub-admin created successfully.",
       admin,
     });
-
   } catch (error) {
-
     console.error("Create sub-admin error:", error);
-
 
     if (error.code === "ER_DUP_ENTRY") {
       return res.status(409).json({
@@ -192,7 +188,6 @@ async function createSubAdmin(req, res) {
         message: "An administrator with this email already exists.",
       });
     }
-
 
     return res.status(500).json({
       success: false,
@@ -202,17 +197,14 @@ async function createSubAdmin(req, res) {
 }
 
 // UPDATE ADMIN
-// Password has its own endpoint.
+
 async function updateAdmin(req, res) {
   try {
-
     if (!requireMainAdmin(req, res)) {
       return;
     }
 
-
     const { id } = req.params;
-
 
     if (!isValidId(id)) {
       return res.status(400).json({
@@ -221,21 +213,15 @@ async function updateAdmin(req, res) {
       });
     }
 
-
+    // Prevent main admin from modifying own account here
     if (Number(id) === Number(req.user.id)) {
       return res.status(400).json({
         success: false,
-        message:
-          "Use the account settings feature to update your own account.",
+        message: "Use the account settings feature to update your own account.",
       });
     }
 
-
-    const {
-      full_name,
-      email,
-    } = req.body;
-
+    const { full_name, email } = req.body;
 
     if (!full_name || !email) {
       return res.status(400).json({
@@ -244,10 +230,8 @@ async function updateAdmin(req, res) {
       });
     }
 
-
-    const cleanFullName = full_name.trim();
-    const cleanEmail = email.trim().toLowerCase();
-
+    const cleanFullName = String(full_name).trim();
+    const cleanEmail = String(email).trim().toLowerCase();
 
     if (cleanFullName.length < 2) {
       return res.status(400).json({
@@ -256,10 +240,7 @@ async function updateAdmin(req, res) {
       });
     }
 
-
-    const emailPattern =
-      /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     if (!emailPattern.test(cleanEmail)) {
       return res.status(400).json({
@@ -268,10 +249,9 @@ async function updateAdmin(req, res) {
       });
     }
 
-    // Check target admin exists
-    const existingAdmin =
-      await adminService.getAdminById(id);
+    // Check target admin
 
+    const existingAdmin = await adminService.getAdminById(id);
 
     if (!existingAdmin) {
       return res.status(404).json({
@@ -280,63 +260,47 @@ async function updateAdmin(req, res) {
       });
     }
 
+    // Only sub-admins can be managed
 
-    // Only sub-admin accounts should be managed here
     if (existingAdmin.role !== "sub_admin") {
       return res.status(403).json({
         success: false,
-        message:
-          "The main admin account cannot be managed here.",
+        message: "The main admin account cannot be managed here.",
       });
     }
-
 
     // Check duplicate email
-    const emailOwner =
-      await adminService.getAdminByEmail(cleanEmail);
 
+    const emailOwner = await adminService.getAdminByEmail(cleanEmail);
 
-    if (
-      emailOwner &&
-      Number(emailOwner.id) !== Number(id)
-    ) {
+    if (emailOwner && Number(emailOwner.id) !== Number(id)) {
       return res.status(409).json({
         success: false,
-        message:
-          "An administrator with this email already exists.",
+        message: "An administrator with this email already exists.",
       });
     }
-
 
     await adminService.updateAdmin(id, {
       full_name: cleanFullName,
       email: cleanEmail,
     });
 
-
-    const updatedAdmin =
-      await adminService.getAdminById(id);
-
+    const updatedAdmin = await adminService.getAdminById(id);
 
     return res.status(200).json({
       success: true,
       message: "Administrator updated successfully.",
       admin: updatedAdmin,
     });
-
   } catch (error) {
-
     console.error("Update admin error:", error);
-
 
     if (error.code === "ER_DUP_ENTRY") {
       return res.status(409).json({
         success: false,
-        message:
-          "An administrator with this email already exists.",
+        message: "An administrator with this email already exists.",
       });
     }
-
 
     return res.status(500).json({
       success: false,
@@ -345,19 +309,16 @@ async function updateAdmin(req, res) {
   }
 }
 
-// UPDATE ADMIN STATUS
-// Main admin only.
-async function updateAdminStatus(req, res) {
-  try {
+// UPDATE ADMIN PASSWORD
 
+async function updateAdminPassword(req, res) {
+  try {
     if (!requireMainAdmin(req, res)) {
       return;
     }
 
-
     const { id } = req.params;
-    const { is_active } = req.body;
-
+    const { password } = req.body;
 
     if (!isValidId(id)) {
       return res.status(400).json({
@@ -366,8 +327,75 @@ async function updateAdminStatus(req, res) {
       });
     }
 
+    if (!password) {
+      return res.status(400).json({
+        success: false,
+        message: "Password is required.",
+      });
+    }
 
-    // Validate boolean / 0 / 1
+    if (String(password).length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must contain at least 8 characters.",
+      });
+    }
+
+    // Find admin
+    const admin = await adminService.getAdminById(id);
+
+    if (!admin) {
+      return res.status(404).json({
+        success: false,
+        message: "Administrator not found.",
+      });
+    }
+
+    // Only sub-admin password can be changed here
+    if (admin.role !== "sub_admin") {
+      return res.status(403).json({
+        success: false,
+        message: "The main admin password cannot be changed here.",
+      });
+    }
+
+    // Hash password
+    const passwordHash = await bcrypt.hash(String(password), 12);
+
+    await adminService.updateAdminPassword(id, passwordHash);
+
+    return res.status(200).json({
+      success: true,
+      message: "Administrator password updated successfully.",
+    });
+  } catch (error) {
+    console.error("Update admin password error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to update administrator password.",
+    });
+  }
+}
+
+// UPDATE ADMIN STATUS
+
+async function updateAdminStatus(req, res) {
+  try {
+    if (!requireMainAdmin(req, res)) {
+      return;
+    }
+
+    const { id } = req.params;
+    const { is_active } = req.body;
+
+    if (!isValidId(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid admin ID.",
+      });
+    }
+
     if (
       !(
         is_active === true ||
@@ -378,8 +406,7 @@ async function updateAdminStatus(req, res) {
     ) {
       return res.status(400).json({
         success: false,
-        message:
-          "is_active must be true, false, 1, or 0.",
+        message: "is_active must be true, false, 1, or 0.",
       });
     }
 
@@ -387,15 +414,11 @@ async function updateAdminStatus(req, res) {
     if (Number(id) === Number(req.user.id)) {
       return res.status(400).json({
         success: false,
-        message:
-          "The main admin cannot deactivate their own account.",
+        message: "The main admin cannot deactivate their own account.",
       });
     }
 
-
-    const admin =
-      await adminService.getAdminById(id);
-
+    const admin = await adminService.getAdminById(id);
 
     if (!admin) {
       return res.status(404).json({
@@ -404,31 +427,18 @@ async function updateAdminStatus(req, res) {
       });
     }
 
-
     if (admin.role !== "sub_admin") {
       return res.status(403).json({
         success: false,
-        message:
-          "The main admin account cannot be managed here.",
+        message: "The main admin account cannot be managed here.",
       });
     }
 
+    const activeValue = is_active === true || is_active === 1 ? 1 : 0;
 
-    const activeValue =
-      is_active === true || is_active === 1
-        ? 1
-        : 0;
+    await adminService.updateAdminStatus(id, activeValue);
 
-
-    await adminService.updateAdminStatus(
-      id,
-      activeValue,
-    );
-
-
-    const updatedAdmin =
-      await adminService.getAdminById(id);
-
+    const updatedAdmin = await adminService.getAdminById(id);
 
     return res.status(200).json({
       success: true,
@@ -438,35 +448,25 @@ async function updateAdminStatus(req, res) {
           : "Sub-admin deactivated successfully.",
       admin: updatedAdmin,
     });
-
   } catch (error) {
-
-    console.error(
-      "Update admin status error:",
-      error,
-    );
-
+    console.error("Update admin status error:", error);
 
     return res.status(500).json({
       success: false,
-      message:
-        "Unable to update administrator status.",
+      message: "Unable to update administrator status.",
     });
   }
 }
 
 // DELETE ADMIN
-// Only sub-admin accounts can be deleted.
+
 async function deleteAdmin(req, res) {
   try {
-
     if (!requireMainAdmin(req, res)) {
       return;
     }
 
-
     const { id } = req.params;
-
 
     if (!isValidId(id)) {
       return res.status(400).json({
@@ -475,20 +475,14 @@ async function deleteAdmin(req, res) {
       });
     }
 
-
-    // Prevent deleting own account
     if (Number(id) === Number(req.user.id)) {
       return res.status(400).json({
         success: false,
-        message:
-          "The main admin cannot delete their own account.",
+        message: "The main admin cannot delete their own account.",
       });
     }
 
-
-    const admin =
-      await adminService.getAdminById(id);
-
+    const admin = await adminService.getAdminById(id);
 
     if (!admin) {
       return res.status(404).json({
@@ -497,29 +491,21 @@ async function deleteAdmin(req, res) {
       });
     }
 
-
-    // Main admin cannot be deleted
     if (admin.role !== "sub_admin") {
       return res.status(403).json({
         success: false,
-        message:
-          "The main admin account cannot be deleted.",
+        message: "The main admin account cannot be deleted.",
       });
     }
 
-
     await adminService.deleteAdmin(id);
-
 
     return res.status(200).json({
       success: true,
       message: "Sub-admin deleted successfully.",
     });
-
   } catch (error) {
-
     console.error("Delete admin error:", error);
-
 
     return res.status(500).json({
       success: false,
@@ -529,32 +515,22 @@ async function deleteAdmin(req, res) {
 }
 
 // GET ALL PERMISSIONS
-// Returns the complete permission list for the checkbox UI.
+
 async function getAllPermissions(req, res) {
   try {
-
     if (!requireMainAdmin(req, res)) {
       return;
     }
 
-
-    const permissions =
-      await adminService.getAllPermissions();
-
+    const permissions = await adminService.getAllPermissions();
 
     return res.status(200).json({
       success: true,
       count: permissions.length,
       permissions,
     });
-
   } catch (error) {
-
-    console.error(
-      "Get all permissions error:",
-      error,
-    );
-
+    console.error("Get all permissions error:", error);
 
     return res.status(500).json({
       success: false,
@@ -563,19 +539,15 @@ async function getAllPermissions(req, res) {
   }
 }
 
-
 // GET ADMIN PERMISSIONS
-// Returns the permissions currently assigned to a sub-admin.
+
 async function getAdminPermissions(req, res) {
   try {
-
     if (!requireMainAdmin(req, res)) {
       return;
     }
 
-
     const { id } = req.params;
-
 
     if (!isValidId(id)) {
       return res.status(400).json({
@@ -584,10 +556,7 @@ async function getAdminPermissions(req, res) {
       });
     }
 
-
-    const admin =
-      await adminService.getAdminById(id);
-
+    const admin = await adminService.getAdminById(id);
 
     if (!admin) {
       return res.status(404).json({
@@ -596,10 +565,7 @@ async function getAdminPermissions(req, res) {
       });
     }
 
-
-    const permissions =
-      await adminService.getAdminPermissions(id);
-
+    const permissions = await adminService.getAdminPermissions(id);
 
     return res.status(200).json({
       success: true,
@@ -613,14 +579,8 @@ async function getAdminPermissions(req, res) {
       count: permissions.length,
       permissions,
     });
-
   } catch (error) {
-
-    console.error(
-      "Get admin permissions error:",
-      error,
-    );
-
+    console.error("Get admin permissions error:", error);
 
     return res.status(500).json({
       success: false,
@@ -629,20 +589,16 @@ async function getAdminPermissions(req, res) {
   }
 }
 
-
 // UPDATE ADMIN PERMISSIONS
-// This replaces all existing permissions.
+
 async function updateAdminPermissions(req, res) {
   try {
-
     if (!requireMainAdmin(req, res)) {
       return;
     }
 
-
     const { id } = req.params;
     const { permission_ids } = req.body;
-
 
     if (!isValidId(id)) {
       return res.status(400).json({
@@ -651,43 +607,29 @@ async function updateAdminPermissions(req, res) {
       });
     }
 
-
-    // Validate permission_ids
     if (!Array.isArray(permission_ids)) {
       return res.status(400).json({
         success: false,
-        message:
-          "permission_ids must be an array.",
+        message: "permission_ids must be an array.",
       });
     }
 
-    // Prevent duplicate permission IDs
-    const uniquePermissionIds =
-      [...new Set(permission_ids)];
+    // Remove duplicates
+    const uniquePermissionIds = [...new Set(permission_ids)];
 
-
-    // Validate every permission ID
-    const validPermissionIds =
-      uniquePermissionIds.every(
-        (permissionId) =>
-          Number.isInteger(permissionId) &&
-          permissionId > 0,
-      );
-
+    // Validate IDs
+    const validPermissionIds = uniquePermissionIds.every(
+      (permissionId) => Number.isInteger(permissionId) && permissionId > 0,
+    );
 
     if (!validPermissionIds) {
       return res.status(400).json({
         success: false,
-        message:
-          "All permission IDs must be positive integers.",
+        message: "All permission IDs must be positive integers.",
       });
     }
 
-
-    // Check admin exists
-    const admin =
-      await adminService.getAdminById(id);
-
+    const admin = await adminService.getAdminById(id);
 
     if (!admin) {
       return res.status(404).json({
@@ -696,83 +638,55 @@ async function updateAdminPermissions(req, res) {
       });
     }
 
-    // Only sub-admin permissions are managed here.
     if (admin.role !== "sub_admin") {
       return res.status(403).json({
         success: false,
-        message:
-          "Permissions cannot be manually assigned to the main admin.",
+        message: "Permissions cannot be manually assigned to the main admin.",
       });
     }
+  // Get available permissions
+  
+    const allPermissions = await adminService.getAllPermissions();
 
+    const availablePermissionIds = new Set(
+      allPermissions.map((permission) => Number(permission.id)),
+    );
 
-    // Get all available permissions
-    const allPermissions =
-      await adminService.getAllPermissions();
+    // Validate requested permissions
 
-
-    const availablePermissionIds =
-      new Set(
-        allPermissions.map(
-          (permission) => Number(permission.id),
-        ),
-      );
-
-
-    // Make sure requested permissions exist
-    const invalidPermissionIds =
-      uniquePermissionIds.filter(
-        (permissionId) =>
-          !availablePermissionIds.has(
-            Number(permissionId),
-          ),
-      );
-
+    const invalidPermissionIds = uniquePermissionIds.filter(
+      (permissionId) => !availablePermissionIds.has(Number(permissionId)),
+    );
 
     if (invalidPermissionIds.length > 0) {
       return res.status(400).json({
         success: false,
-        message:
-          "One or more permission IDs do not exist.",
-        invalid_permission_ids:
-          invalidPermissionIds,
+        message: "One or more permission IDs do not exist.",
+        invalid_permission_ids: invalidPermissionIds,
       });
     }
+ // Replace permissions
 
-    // Replace permissions
-    const updatedPermissionIds =
-      await adminService.updateAdminPermissions(
-        id,
-        uniquePermissionIds,
-      );
+    const updatedPermissionIds = await adminService.updateAdminPermissions(
+      id,
+      uniquePermissionIds,
+    );
 
-
-    // Get permission details for response
-    const updatedPermissions =
-      await adminService.getAdminPermissions(id);
-
+    const updatedPermissions = await adminService.getAdminPermissions(id);
 
     return res.status(200).json({
       success: true,
-      message:
-        "Administrator permissions updated successfully.",
+      message: "Administrator permissions updated successfully.",
       admin_id: Number(id),
       permission_ids: updatedPermissionIds,
       permissions: updatedPermissions,
     });
-
   } catch (error) {
-
-    console.error(
-      "Update admin permissions error:",
-      error,
-    );
-
+    console.error("Update admin permissions error:", error);
 
     return res.status(500).json({
       success: false,
-      message:
-        "Unable to update administrator permissions.",
+      message: "Unable to update administrator permissions.",
     });
   }
 }
@@ -783,10 +697,10 @@ module.exports = {
   getAdminById,
   createSubAdmin,
   updateAdmin,
+  updateAdminPassword,
   updateAdminStatus,
   deleteAdmin,
   getAllPermissions,
   getAdminPermissions,
   updateAdminPermissions,
-
 };

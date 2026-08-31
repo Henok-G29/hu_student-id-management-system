@@ -18,8 +18,8 @@ async function getAllAdmins() {
   return rows;
 }
 
-
 // GET ADMIN BY ID
+
 async function getAdminById(id) {
   const [rows] = await pool.execute(
     `
@@ -41,8 +41,8 @@ async function getAdminById(id) {
   return rows[0] || null;
 }
 
-
 // GET ADMIN BY EMAIL
+
 async function getAdminByEmail(email) {
   const [rows] = await pool.execute(
     `
@@ -65,16 +65,12 @@ async function getAdminByEmail(email) {
   return rows[0] || null;
 }
 
+// CREATE SUB-ADMIN
 
-// CREATE SUB ADMIN
-// New sub-admins are created without any permissions.
-// Permissions are assigned later by the main admin.
+// The controller is responsible for hashing the password.
+
 async function createSubAdmin(adminData) {
-  const {
-    full_name,
-    email,
-    password_hash,
-  } = adminData;
+  const { full_name, email, password_hash } = adminData;
 
   const [result] = await pool.execute(
     `
@@ -87,11 +83,7 @@ async function createSubAdmin(adminData) {
       )
       VALUES (?, ?, ?, 'sub_admin', 1)
     `,
-    [
-      full_name,
-      email,
-      password_hash,
-    ],
+    [full_name, email, password_hash],
   );
 
   return {
@@ -103,13 +95,10 @@ async function createSubAdmin(adminData) {
   };
 }
 
-
 // UPDATE ADMIN
+
 async function updateAdmin(id, adminData) {
-  const {
-    full_name,
-    email,
-  } = adminData;
+  const { full_name, email } = adminData;
 
   const [result] = await pool.execute(
     `
@@ -120,18 +109,15 @@ async function updateAdmin(id, adminData) {
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `,
-    [
-      full_name,
-      email,
-      id,
-    ],
+    [full_name, email, id],
   );
 
   return result;
 }
 
-
 // UPDATE ADMIN PASSWORD
+//
+// Receives a HASHED password.
 async function updateAdminPassword(id, passwordHash) {
   const [result] = await pool.execute(
     `
@@ -141,16 +127,14 @@ async function updateAdminPassword(id, passwordHash) {
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `,
-    [
-      passwordHash,
-      id,
-    ],
+    [passwordHash, id],
   );
 
   return result;
 }
 
 // UPDATE ADMIN STATUS
+
 async function updateAdminStatus(id, isActive) {
   const [result] = await pool.execute(
     `
@@ -160,23 +144,23 @@ async function updateAdminStatus(id, isActive) {
         updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `,
-    [
-      isActive,
-      id,
-    ],
+    [isActive, id],
   );
 
   return result;
 }
 
 // DELETE ADMIN
+//
+// Deletes permissions first, then the admin account.
 async function deleteAdmin(id) {
   const connection = await pool.getConnection();
 
   try {
     await connection.beginTransaction();
 
-    // Remove assigned permissions first.
+    // Remove assigned permissions
+
     await connection.execute(
       `
         DELETE FROM admin_user_permissions
@@ -185,30 +169,29 @@ async function deleteAdmin(id) {
       [id],
     );
 
-    // Delete admin account.
+    // Delete admin account
+
     const [result] = await connection.execute(
       `
-        DELETE FROM admin_users
-        WHERE id = ?
-      `,
+          DELETE FROM admin_users
+          WHERE id = ?
+        `,
       [id],
     );
 
     await connection.commit();
+
     return result;
-
   } catch (error) {
-
     await connection.rollback();
     throw error;
-
-  } 
+  } finally {
+    connection.release();
+  }
 }
 
-
 // GET ALL PERMISSIONS
-// Returns every permission available in the system.
-// The control panel will use this list to generate checkboxes.
+
 async function getAllPermissions() {
   const [rows] = await pool.execute(`
     SELECT
@@ -221,9 +204,7 @@ async function getAllPermissions() {
   return rows;
 }
 
-
 // GET ADMIN PERMISSIONS
-// Returns permissions currently assigned to one admin.
 async function getAdminPermissions(adminId) {
   const [rows] = await pool.execute(
     `
@@ -242,8 +223,8 @@ async function getAdminPermissions(adminId) {
   return rows;
 }
 
-
 // GET ADMIN PERMISSION IDS
+
 async function getAdminPermissionIds(adminId) {
   const [rows] = await pool.execute(
     `
@@ -256,20 +237,21 @@ async function getAdminPermissionIds(adminId) {
     [adminId],
   );
 
-  return rows.map((row) => row.permission_id);
+  return rows.map((row) => Number(row.permission_id));
 }
 
-
 // UPDATE ADMIN PERMISSIONS
+//
+// Replaces all existing permissions.
+
 async function updateAdminPermissions(adminId, permissionIds) {
   const connection = await pool.getConnection();
 
   try {
-
     await connection.beginTransaction();
 
-
     // Remove current permissions
+
     await connection.execute(
       `
         DELETE FROM admin_user_permissions
@@ -278,15 +260,13 @@ async function updateAdminPermissions(adminId, permissionIds) {
       [adminId],
     );
 
+    // Add new permissions
 
-    // Add selected permissions
     if (permissionIds.length > 0) {
-
       const values = permissionIds.map((permissionId) => [
         adminId,
         permissionId,
       ]);
-
 
       await connection.query(
         `
@@ -300,25 +280,20 @@ async function updateAdminPermissions(adminId, permissionIds) {
       );
     }
 
-
     await connection.commit();
 
-
-    // Return the final permission list.
+    // Return final permission IDs
     return await getAdminPermissionIds(adminId);
-
   } catch (error) {
-
     await connection.rollback();
-
     throw error;
-
-  } 
+  } finally {
+    connection.release();
+  }
 }
 
 
 module.exports = {
-
   getAllAdmins,
   getAdminById,
   getAdminByEmail,
@@ -331,5 +306,4 @@ module.exports = {
   getAdminPermissions,
   getAdminPermissionIds,
   updateAdminPermissions,
-
 };
