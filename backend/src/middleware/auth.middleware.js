@@ -6,7 +6,7 @@ function authenticate(req, res, next) {
 
         if (!authHeader) {
             return res.status(401).json({
-                success: false,
+                successs: false,
                 message: "Authentication token is required ...!",
             });
         }
@@ -15,7 +15,7 @@ function authenticate(req, res, next) {
 
         if (parts.length !== 2 || parts[0] !== "Bearer") {
             return res.status(401).json({
-                success: false,
+                successs: false,
                 message: "Invalid authentication format ...!",
             });
         }
@@ -32,7 +32,7 @@ function authenticate(req, res, next) {
     } catch (error) {
         if (error.name === "TokenExpiredError") {
             return res.status(401).json({
-                succes: false,
+                success: false,
                 message: "Authentication token has expired ...!",
             });
         }
@@ -40,7 +40,7 @@ function authenticate(req, res, next) {
         console.error("Authentication middleware error:", error)
 
         return res.status(500).json({
-            succes: false,
+            success: false,
             message: "Internal server error ...!"
         });
     }
