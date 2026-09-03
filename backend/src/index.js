@@ -10,7 +10,6 @@ const adminRoutes = require("./routes/admin.routes")
 const idCardReceiptRouter = require("./routes/idCardReceipt.routes")
 
 const app = express();
-
 // MIDDLEWARE
 app.use(cors());
 app.use(express.json());
