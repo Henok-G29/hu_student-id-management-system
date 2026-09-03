@@ -211,6 +211,7 @@ async function editPhoto(ctx) {
       "💡 Good lighting\n" +
       "🧱 Clean background\n" +
       "📷 Recent photo\n" +
+      "📷 3x4 picture Portrait (3:4 ratio)\n" +
       "👔 Professional appearance\n\n" +
       "🚫 No sunglasses\n" +
       "🚫 No filters\n" +
