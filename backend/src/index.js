@@ -29,7 +29,7 @@ app.use("/api/admins", adminRoutes);
 app.use("/api/id-card-receipts", idCardReceiptRouter);
 
 // START EXPRESS SERVER
-app.listen(env.port, () => {
+app.listen(env.port, "0.0.0.0", () => {
   console.log(`API Server is running on PORT ${env.port}`);
 
   console.log(`Server Address http://127.0.0.1:${env.port}`);
